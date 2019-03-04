@@ -52,6 +52,10 @@ func getDoc(auth []*http.Cookie) *goquery.Document {
 			return nil
 	}
 
+	for _, cookie := range cookies {
+		req.AddCookie(cookie)
+	}
+
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -149,8 +153,6 @@ func main() {
 	flag.StringVar(&pass, "pass", "", "password")
 	tokenPtr := flag.String("token", "", "token")
 	chatId := flag.Int64("id", 0, "chatID")
-
-	//237031995
 
 	cookies = loginFn()
 
