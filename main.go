@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/url"
 	"flag"
+	"errors"
 
 	//"golang.org/x/net/html"
 	"golang.org/x/net/html/charset"
@@ -44,12 +45,12 @@ func loginFn() []*http.Cookie {
 	return cookies
 }
 
-func getDoc(auth []*http.Cookie) *goquery.Document {
+func getDoc(auth []*http.Cookie) (*goquery.Document, error) {
 	var ret *goquery.Document = nil
 
 	req, err := http.NewRequest("GET", "https://forum.guns.ru/forumtopics/25.html", nil)
 	if err != nil {
-			return nil
+			return nil, err
 	}
 
 	for _, cookie := range cookies {
@@ -59,7 +60,7 @@ func getDoc(auth []*http.Cookie) *goquery.Document {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-			return nil
+			return nil, err
 	}
 
 	defer resp.Body.Close()
@@ -67,13 +68,13 @@ func getDoc(auth []*http.Cookie) *goquery.Document {
 	utf8, err := charset.NewReader(resp.Body, resp.Header.Get("Content-Type"))
 	if err != nil {
 		fmt.Println("Encoding error:", err)
-		return nil
+		return nil, err
 	}
 
 	ret, err = goquery.NewDocumentFromReader(utf8)
 	if err != nil {
 		fmt.Println(err)
-		return nil
+		return nil, err
 	}
 	
 	nodes := ret.Find("a[name='open_login']")
@@ -81,17 +82,19 @@ func getDoc(auth []*http.Cookie) *goquery.Document {
 	fmt.Println("Auth: ", nodes.Size())
 
 	if nodes.Size() != 0 {
-		time.Sleep(time.Second)
-		ret = getDoc(loginFn())
+		return nil, errors.New("Auth fail")
 	} 
-	return ret
+	return ret, nil
 }
 
 func getnewtopics(lastid string) ([]topciline, error) {
 	topics := []topciline{}
 
 
-	doc := getDoc(cookies)
+	doc, err := getDoc(cookies)
+	if err != nil {
+		return nil, err
+	}
 
 	isStop := false
 
@@ -176,11 +179,12 @@ func main() {
 	ticker := time.NewTicker(60 * time.Second)
 
 	for _ = range ticker.C {
-		rett, _ := getnewtopics(lastid)
-		//fmt.Println(rett[0].id)
-		fmt.Println(len(rett))
+		rett, err := getnewtopics(lastid)
 
-		if len(rett) != 0 {
+		if err != nil {
+			msg := tgbotapi.NewMessage(*chatId, "error: " + err.Error())
+			bot.Send(msg)
+		} else if len(rett) != 0 {
 			for i, topic := range rett {
 				if i == 0 {
 					lastid = topic.id
@@ -191,5 +195,4 @@ func main() {
 		}
 
 	}
-
 }
