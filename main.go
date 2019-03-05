@@ -157,6 +157,12 @@ func main() {
 	tokenPtr := flag.String("token", "", "token")
 	chatId := flag.Int64("id", 0, "chatID")
 
+	flag.Parse()
+
+	if login == "" || pass == "" || *tokenPtr == "" || *chatId == 0 {
+		log.Panic()
+	}
+
 	cookies = loginFn()
 
 	lastid := ""
