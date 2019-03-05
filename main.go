@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"flag"
 	"errors"
+	"strconv"
 
 	//"golang.org/x/net/html"
 	"golang.org/x/net/html/charset"
@@ -30,6 +31,8 @@ type topciline struct {
 	id    string
 	owner string
 }
+
+var m map[string]bool
 
 func loginFn() []*http.Cookie {
 	resp1, _ := http.PostForm("https://forum.guns.ru/forum/login", url.Values{"UserName": {login}, "Password": {pass}})
@@ -87,7 +90,7 @@ func getDoc(auth []*http.Cookie) (*goquery.Document, error) {
 	return ret, nil
 }
 
-func getnewtopics(lastid string) ([]topciline, error) {
+func getnewtopics() ([]topciline, error) {
 	topics := []topciline{}
 
 
@@ -138,12 +141,13 @@ func getnewtopics(lastid string) ([]topciline, error) {
 
 		topic.owner = selection.Find("td[width='12%']").Find("nobr").Text()
 
-		if topic.id == lastid {
-			isStop = true
-		}
-
 		if isNeedAdd && isNeedAdd2 && !isStop {
-			topics = append(topics, topic)
+			_, ok := m[topic.id]
+			if !ok {
+				topics = append(topics, topic)
+				m[topic.id] = true
+			}
+
 		}
 	})
 
@@ -152,6 +156,7 @@ func getnewtopics(lastid string) ([]topciline, error) {
 
 func main() {
 
+	m = make(map[string]bool)
 	flag.StringVar(&login, "login", "", "login")
 	flag.StringVar(&pass, "pass", "", "password")
 	tokenPtr := flag.String("token", "", "token")
@@ -165,13 +170,7 @@ func main() {
 
 	cookies = loginFn()
 
-	lastid := ""
-
-	ret, err := getnewtopics(lastid)
-
-	if err == nil && len(ret) != 0 {
-		lastid = ret[0].id
-	}
+	_, err := getnewtopics()
 
 	bot, err := tgbotapi.NewBotAPI(*tokenPtr)
 	if err != nil {
@@ -186,19 +185,21 @@ func main() {
 	ticker := time.NewTicker(60 * time.Second)
 
 	for _ = range ticker.C {
-		rett, err := getnewtopics(lastid)
+		rett, err := getnewtopics()
 
 		if err != nil {
 			msg := tgbotapi.NewMessage(*chatId, "error: " + err.Error())
 			bot.Send(msg)
 		} else if len(rett) != 0 {
-			for i, topic := range rett {
-				if i == 0 {
-					lastid = topic.id
-				}
-				msg := tgbotapi.NewMessage(*chatId, topic.name + "\n" + topic.href)
-				bot.Send(msg)
+			sDelim := "----------------------------------"
+
+			sMsg := "count: " + strconv.Itoa(len(rett)) + "\n" + sDelim
+			for _, topic := range rett {
+				sMsg += topic.name + "\n" + topic.href + "\n" + sDelim
 			}
+
+			msg := tgbotapi.NewMessage(*chatId, sMsg)
+			bot.Send(msg)
 		}
 
 	}
