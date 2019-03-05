@@ -159,12 +159,13 @@ func main() {
 
 	cookies = loginFn()
 
-	ret, _ := getnewtopics("")
+	lastid := ""
 
-	lastid := ret[0].id
-	fmt.Println(lastid)
-	fmt.Println(ret[0].href)
-	fmt.Println(len(ret))
+	ret, err := getnewtopics(lastid)
+
+	if err == nil && len(ret) != 0 {
+		lastid = ret[0].id
+	}
 
 	bot, err := tgbotapi.NewBotAPI(*tokenPtr)
 	if err != nil {
