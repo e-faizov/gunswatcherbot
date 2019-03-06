@@ -191,9 +191,9 @@ func main() {
 			msg := tgbotapi.NewMessage(*chatId, "error: " + err.Error())
 			bot.Send(msg)
 		} else if len(rett) != 0 {
-			sDelim := "----------------------------------"
+			sDelim := "----------------------------------\n"
 
-			sMsg := "count: " + strconv.Itoa(len(rett)) + "\n" + sDelim
+			sMsg := ""// "count: " + strconv.Itoa(len(rett)) + "\n" + sDelim
 			for _, topic := range rett {
 				sMsg += topic.name + "\n" + topic.href + "\n" + sDelim
 			}
